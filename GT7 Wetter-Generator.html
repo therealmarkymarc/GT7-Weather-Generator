@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GT7 Wetter-Generator</title>
+<style>
+:root{--bg:#f1f3f7;--card:#fff;--text:#161a22;--muted:#667085;--accent:#2563eb;--border:#e3e6ec;
+--s1:#fde68a;--s2:#f59e0b;--c1:#e5e7eb;--c2:#6b7280;--r1:#bfdbfe;--r2:#2563eb;--sh:0 1px 3px rgba(0,0,0,.08);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1218;--card:#1a1e27;--text:#eceef3;--muted:#98a0b0;--accent:#60a5fa;--border:#2b303c;
+--s1:#4a3a10;--s2:#fbbf24;--c1:#2c313c;--c2:#9ca3af;--r1:#16284a;--r2:#60a5fa;--sh:none}}
+:root[data-theme="dark"]{--bg:#0f1218;--card:#1a1e27;--text:#eceef3;--muted:#98a0b0;--accent:#60a5fa;--border:#2b303c;
+--s1:#4a3a10;--s2:#fbbf24;--c1:#2c313c;--c2:#9ca3af;--r1:#16284a;--r2:#60a5fa;--sh:none}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px}
+main{max-width:760px;margin:0 auto}
+h1{font-size:1.5rem;margin:8px 0 4px}h2{font-size:1.05rem;margin:0 0 10px}
+.sub{color:var(--muted);margin:0 0 16px;font-size:.9rem}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:var(--sh)}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}
+input{width:100%;padding:10px;font-size:1rem;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text)}
+button{width:100%;margin-top:14px;padding:13px;font-size:1rem;font-weight:600;border:0;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer}
+button.sec{background:var(--bg);color:var(--text);border:1px solid var(--border);margin-top:12px}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden;margin:6px 0 14px;background:var(--border)}
+.bar i{display:block;height:100%}
+.sum{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:.9rem;color:var(--muted);margin-bottom:6px}
+.sum b{color:var(--text)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px}
+.tile{border-radius:12px;padding:10px 8px;text-align:center;border:1px solid var(--border);background:linear-gradient(160deg,var(--g1),var(--g2x))}
+.tile.S{--g1:var(--s1);--g2x:var(--card);--ic:var(--s2)}
+.tile.C{--g1:var(--c1);--g2x:var(--card);--ic:var(--c2)}
+.tile.R{--g1:var(--r1);--g2x:var(--card);--ic:var(--r2)}
+.tile svg{width:44px;height:44px;color:var(--ic)}
+.tile small{display:block;font-size:.7rem;color:var(--muted)}
+.tile b{display:block;font-size:1.15rem;margin:2px 0}
+.tile span{display:block;font-size:.72rem;line-height:1.2;color:var(--muted);min-height:2.4em}
+.leg h3{font-size:.85rem;margin:12px 0 6px;color:var(--muted);font-weight:600}
+.leg .tile{padding:6px}.leg .tile svg{width:30px;height:30px}.leg .tile b{font-size:.95rem}
+.leg .grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+</style>
+</head>
+<body>
+<main>
+<h1>GT7 Wetter-Generator</h1>
+<p class="sub">Regenwahrscheinlichkeit und Slot-Anzahl eingeben, der Rest wird pro Slot ausgewürfelt.</p>
+
+<div class="card">
+  <div class="row">
+    <div><label for="p">Regenwahrscheinlichkeit (%)</label><input id="p" type="number" min="0" max="100" value="50"></div>
+    <div><label for="c">Bewölkt bei trocken (%)</label><input id="c" type="number" min="0" max="100" value="30"></div>
+    <div><label for="n">Anzahl Slots</label><input id="n" type="number" min="1" max="50" value="8"></div>
+  </div>
+  <button id="go">Wetter auswürfeln</button>
+</div>
+
+<div class="card" id="out" hidden>
+  <h2>Ergebnis</h2>
+  <div class="bar" id="bar"></div>
+  <div class="sum" id="sum"></div>
+  <div class="grid" id="slots"></div>
+  <button class="sec" id="copy">Als Text kopieren</button>
+</div>
+
+<div class="card leg">
+  <h2>Alle 32 Wetterlagen</h2>
+  <h3>Sonnig (S)</h3><div class="grid" id="lS"></div>
+  <h3>Bewölkt (C)</h3><div class="grid" id="lC"></div>
+  <h3>Regen (R)</h3><div class="grid" id="lR"></div>
+</div>
+</main>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="sun" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+      <circle cx="24" cy="24" r="8" fill="currentColor" fill-opacity=".25"/>
+      <path d="M24 5v6M24 37v6M5 24h6M37 24h6M10.6 10.6l4.2 4.2M33.2 33.2l4.2 4.2M10.6 37.4l4.2-4.2M33.2 14.8l4.2-4.2"/>
+    </symbol>
+    <symbol id="partly" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="17" cy="17" r="6" fill="currentColor" fill-opacity=".25"/>
+      <path d="M17 5v3M5 17h3M8.5 8.5l2 2M25.5 8.5l-2 2"/>
+      <path d="M15 40h19a7 7 0 0 0 .8-13.9A9 9 0 0 0 17.5 28 6 6 0 0 0 15 40z" fill="var(--card)"/>
+    </symbol>
+    <symbol id="cloud" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M13 36h22a8 8 0 0 0 .9-15.9A11 11 0 0 0 15 22a7 7 0 0 0-2 14z" fill="currentColor" fill-opacity=".2"/>
+    </symbol>
+    <symbol id="rain" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M13 29h22a7 7 0 0 0 .8-13.9A10 10 0 0 0 15.5 17 6 6 0 0 0 13 29z" fill="currentColor" fill-opacity=".2"/>
+      <path d="M16 35l-2 6M25 35l-2 6M34 35l-2 6"/>
+    </symbol>
+    <symbol id="heavy" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M13 26h22a7 7 0 0 0 .8-13.9A10 10 0 0 0 15.5 14 6 6 0 0 0 13 26z" fill="currentColor" fill-opacity=".3"/>
+      <path d="M13 31l-2 6M20 31l-2 6M27 31l-2 6M34 31l-2 6M16.5 38l-2 5M23.5 38l-2 5M30.5 38l-2 5"/>
+    </symbol>
+  </defs>
+</svg>
+
+<script>
+// Alle Wetterlagen aus dem Spiel. g = Gruppe, i = Icon, t = Bezeichnung
+const W = [
+ ["S01","S","sun","Trocken, wolkenlos und angenehm"],
+ ["S02","S","sun","Trocken und angenehm mit ein paar Wolken"],
+ ["S03","S","partly","Trocken, bewölkt und angenehm"],
+ ["S04","S","partly","Trocken, bewölkt und sonnig"],
+ ["S05","S","sun","Dunstig, wolkenlos und sonnig"],
+ ["S06","S","sun","Feucht, wolkenlos und angenehm"],
+ ["S07","S","sun","Feucht und angenehm mit ein paar Wolken"],
+ ["S08","S","partly","Feucht, sonnig und bewölkt"],
+ ["S09","S","partly","Feucht und sonnig mit vielen Wolken"],
+ ["S10","S","partly","Dunstig und sonnig mit vielen Wolken"],
+ ["S11","S","partly","Sonnig mit Alpendunst"],
+ ["S12","S","partly","Sonnig mit vielen Monsunwolken"],
+ ["S13","S","sun","Sonnig mit ein paar Monsunwolken"],
+ ["S14","S","partly","Sonnig mit vielen Monsunwolken"],
+ ["S15","S","sun","Diesig, wolkenlos und angenehm"],
+ ["S16","S","sun","Diesig und sonnig mit ein paar Wolken"],
+ ["S17","S","partly","Diesig, bewölkt und sonnig"],
+ ["S18","S","partly","Diesig, bewölkt und sonnig"],
+ ["C01","C","cloud","Bewölkt und hell"],
+ ["C02","C","cloud","Bewölkt und warm"],
+ ["C03","C","cloud","Bewölkt und dunkel"],
+ ["C04","C","cloud","Bewölkt und kühl"],
+ ["C05","C","cloud","Bewölkt"],
+ ["C06","C","cloud","Dicke Wolkendecke"],
+ ["R01","R","rain","Leichter Nieselregen"],
+ ["R02","R","rain","Wolkenlos mit warmem Regen"],
+ ["R03","R","rain","Leichter Regen"],
+ ["R04","R","rain","Wolkig mit Regen"],
+ ["R05","R","rain","Wolkig mit Regen"],
+ ["R06","R","rain","Dicke Wolkendecke mit Regen"],
+ ["R07","R","heavy","Wolkig mit Starkregen"],
+ ["R08","R","heavy","Dicke Wolkendecke mit Starkregen"]
+].map(([code,g,i,t])=>({code,g,i,t}));
+
+const $ = id => document.getElementById(id);
+const clamp = (v,a,b,d) => { v = parseFloat(v); return isNaN(v) ? d : Math.min(b, Math.max(a, v)); };
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const tile = (w, label) => `<div class="tile ${w.g}"><svg><use href="#${w.i}"/></svg>${label?`<small>${label}</small>`:""}<b>${w.code}</b><span>${w.t}</span></div>`;
+const NAME = {S:"Sonnig", C:"Bewölkt", R:"Regen"};
+const COL = {S:"var(--s2)", C:"var(--c2)", R:"var(--r2)"};
+let last = [];
+
+function roll(){
+  const p = clamp($("p").value,0,100,0), c = clamp($("c").value,0,100,0);
+  const n = Math.round(clamp($("n").value,1,50,1));
+  last = [];
+  for(let k=0;k<n;k++){
+    let g;
+    if(Math.random()*100 < p) g = "R";
+    else g = Math.random()*100 < c ? "C" : "S";
+    last.push(pick(W.filter(w => w.g === g)));
+  }
+  const cnt = {S:0,C:0,R:0};
+  last.forEach(w => cnt[w.g]++);
+  $("bar").innerHTML = ["S","C","R"].map(g => `<i style="width:${cnt[g]/n*100}%;background:${COL[g]}"></i>`).join("");
+  $("sum").innerHTML = ["S","C","R"].map(g => `<span>${NAME[g]}: <b>${cnt[g]}</b> (${Math.round(cnt[g]/n*100)}%)</span>`).join("");
+  $("slots").innerHTML = last.map((w,k) => tile(w, "Slot "+(k+1))).join("");
+  $("out").hidden = false;
+}
+
+["S","C","R"].forEach(g => $("l"+g).innerHTML = W.filter(w => w.g === g).map(w => tile(w)).join(""));
+$("go").addEventListener("click", roll);
+$("copy").addEventListener("click", () => {
+  const txt = last.map((w,k) => `Slot ${k+1}: ${w.code} (${w.t})`).join("\n");
+  const done = m => { $("copy").textContent = m; setTimeout(() => $("copy").textContent = "Als Text kopieren", 1500); };
+  try { navigator.clipboard.writeText(txt).then(() => done("Kopiert"), () => done("Kopieren nicht möglich")); }
+  catch(e){ done("Kopieren nicht möglich"); }
+});
+</script>
+</body>
+</html>
